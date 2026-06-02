@@ -1,0 +1,209 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyNH4niAqbqPTeNVm7oLgvg+",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/behan02/langchain-tutorial/blob/main/chapters\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "#Structured Output using Pydantic and TypedDict"
+      ],
+      "metadata": {
+        "id": "UWpRRxrP4kAE"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install -qU \\\n",
+        "  langchain-core \\\n",
+        "  langchain-google-genai \\\n",
+        "  langchain-community"
+      ],
+      "metadata": {
+        "id": "Vk4VoU5S40Lr"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from langchain_google_genai import ChatGoogleGenerativeAI\n",
+        "import os\n",
+        "\n",
+        "os.environ[\"GOOGLE_API_KEY\"] = \"\"\n",
+        "\n",
+        "llm = ChatGoogleGenerativeAI(model=\"gemini-2.5-flash\",temperature=0)"
+      ],
+      "metadata": {
+        "id": "4iPdCD9C5Ifn"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## Guiding using Prompts"
+      ],
+      "metadata": {
+        "id": "HI80ElZT6LNp"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from langchain_core.prompts import ChatPromptTemplate\n",
+        "\n",
+        "prompt_template = ChatPromptTemplate.from_messages([\n",
+        "    (\"system\",\"You are a helpful assistant\"),\n",
+        "    (\"user\",\"Tell me a joke. Generate the output in key-value pair format with the following keys: setup, punchline\")\n",
+        "])\n",
+        "\n",
+        "result = llm.invoke(prompt_template.format_messages())\n",
+        "result.content"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 36
+        },
+        "id": "kSdej48i6F79",
+        "outputId": "7e18f149-487c-4c71-a7c6-b36ce93ccf24"
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "'```json\\n{\\n  \"setup\": \"Why don\\'t scientists trust atoms?\",\\n  \"punchline\": \"Because they make up everything!\"\\n}\\n```'"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "string"
+            }
+          },
+          "metadata": {},
+          "execution_count": 15
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## Using Pydantic Models\n",
+        "\n",
+        "**Pydantic** is a data validation library. It uses Python classes (`BaseModel`) to enforce types at **runtime**. If the data doesn't match the schema, it throws an error. Use this when you need strict validation and want to treat data as objects."
+      ],
+      "metadata": {
+        "id": "WeO5816m9b_H"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pydantic import BaseModel, Field\n",
+        "\n",
+        "class my_schema(BaseModel):\n",
+        "  setup: str = Field(description=\"The setup for the joke\")\n",
+        "  punchline: str = Field(description=\"The punchline for the joke\")\n",
+        "\n",
+        "llm_structured_output = llm.with_structured_output(my_schema)\n",
+        "\n",
+        "result = llm_structured_output.invoke(\"Tell me a joke\")\n",
+        "result"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "GlxZwUrd9ba8",
+        "outputId": "1e55c551-db6a-4356-a509-8b597f59c3a0"
+      },
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "my_schema(setup=\"Why don't scientists trust atoms?\", punchline='Because they make up everything!')"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 13
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## Using TypedDict\n",
+        "\n",
+        "**TypedDict** is a type hint for dictionaries. It provides **static type checking** (like in your IDE) but does not enforce types at runtime. Use this when you want simple dictionary outputs without the overhead of validation classes."
+      ],
+      "metadata": {
+        "id": "Z5OtSzkp-vgY"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from typing import TypedDict\n",
+        "\n",
+        "class my_schema_td(TypedDict):\n",
+        "  setup: str\n",
+        "  punchline: str\n",
+        "\n",
+        "llm_structured_output_td = llm.with_structured_output(my_schema_td)\n",
+        "\n",
+        "result = llm_structured_output_td.invoke(\"Tell me a joke\")\n",
+        "result"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "n4WFY0li-xbi",
+        "outputId": "4b7ad8b2-1cff-4edb-acac-ca2c1d533b48"
+      },
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "{'setup': \"Why don't scientists trust atoms?\",\n",
+              " 'punchline': 'Because they make up everything!'}"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 14
+        }
+      ]
+    }
+  ]
+}
